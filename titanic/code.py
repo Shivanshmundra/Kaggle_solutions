@@ -123,6 +123,7 @@ combine = [train_df, test_df]
 # X_train = train_df.drop("Survived", axis=1)
 X_train = train_df
 Y_train = train_df["Survived"]
+test_passenger_id=test_df["PassengerId"]
 X_test  = test_df.drop(["PassengerId"], axis=1).copy()
 #print(X_train.shape, Y_train.shape, X_test.shape)
 
@@ -133,10 +134,12 @@ def dummy_data(data, columns):
     return data
 
 
-dummy_columns = ["Pclass", "Sex", "Age*Class", "IsAlone", "Title", "Embarked", "Fare", "Age"]
+dummy_columns = ["Pclass", "Sex", "IsAlone", "Title", "Embarked", "Fare", "Age"]
 train_data=dummy_data(X_train, dummy_columns)
 test_data=dummy_data(X_test, dummy_columns)
-print(train_data.head(10))
+print(test_data.columns)
+print(train_data.columns)
+
 
 
 from sklearn.preprocessing import LabelBinarizer
@@ -265,6 +268,19 @@ with tf.Session() as sess:
                       "Validation Acc: {:.4f}".format(val_acc))
     saver.save(sess, "./titanic.ckpt")
 
+model=build_neural_network()
+restorer=tf.train.Saver()
+with tf.Session() as sess:
+    restorer.restore(sess,"./titanic.ckpt")
+    feed={
+        model.inputs:test_data,
+        model.is_training:False
+    }
+    test_predict=sess.run(model.predicted,feed_dict=feed)
+    
+print(test_predict[:10])
+
+
 
 # submission = pd.DataFrame({
 #         "PassengerId": test_df["PassengerId"],
@@ -272,3 +288,14 @@ with tf.Session() as sess:
 #     })
 # submission.to_csv('submission.csv', index=False)
 
+from sklearn.preprocessing import Binarizer
+binarizer=Binarizer(0.5)
+test_predict_result=binarizer.fit_transform(test_predict)
+test_predict_result=test_predict_result.astype(np.int32)
+print(test_predict_result[:10])
+
+passenger_id=test_passenger_id.copy()
+evaluation=passenger_id.to_frame()
+evaluation["Survived"]=test_predict_result
+print(evaluation[:10])
+evaluation.to_csv("evaluation_submission.csv",index=False)
